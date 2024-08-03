@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "bot-test-task"
+version = "0.1.0"
+description = ""
+authors = ["Kettariec <kettariec@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.3"
+python-dotenv = "^1.0.1"
+aiogram = "^2.23.1"
+apscheduler = "^3.10.4"
+pillow = "^10.4.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
