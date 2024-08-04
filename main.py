@@ -22,6 +22,7 @@ logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
 API_TOKEN = os.getenv('API_TOKEN')
+OPENWEATHERMAP_API_KEY = os.getenv('OPENWEATHERMAP_API_KEY')
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
@@ -260,65 +261,35 @@ async def process_city(message: types.Message, state: FSMContext):
     city_name = message.text
     await state.finish()
 
-    geocode_url = f"https://nominatim.openstreetmap.org/search?format=json&q={city_name}"
+    weather_url = (
+        f"https://api.openweathermap.org/data/2.5/weather?q={city_name}"
+        f"&appid={OPENWEATHERMAP_API_KEY}&units=metric&lang=ru"
+    )
 
     try:
-        response = requests.get(geocode_url)
+        response = requests.get(weather_url)
         response.raise_for_status()
-        geocode_data = response.json()
+        weather_data = response.json()
 
-        if not geocode_data:
+        if weather_data.get('cod') != 200:
             await message.reply("Не удалось найти город. Попробуйте еще раз.")
             return
 
-        location = geocode_data[0]
-        lat = location['lat']
-        lon = location['lon']
+        temp = weather_data['main']['temp']
+        feels_like = weather_data['main']['feels_like']
+        humidity = weather_data['main']['humidity']
+        wind_speed = weather_data['wind']['speed']
+        description = weather_data['weather'][0]['description'].capitalize()
 
-        weather_url = (f"https://api.open-meteo.com/v1/forecast?latitude="
-                       f"{lat}&longitude={lon}&current_weather=true&hourly=temperature_2m,"
-                       "relative_humidity_2m,windspeed_10m,weathercode")
-        weather_response = requests.get(weather_url)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
-
-        current_weather = weather_data.get('current_weather')
-        hourly_data = weather_data.get('hourly', {})
-
-        if current_weather and hourly_data:
-            temperature = current_weather.get('temperature')
-            windspeed = current_weather.get('windspeed')
-            weathercode = current_weather.get('weathercode')
-
-            humidity_data = hourly_data.get('relative_humidity_2m', [])
-            if humidity_data:
-                humidity = humidity_data[0]
-            else:
-                humidity = "неизвестно"
-
-            weather_descriptions = {
-                0: "Ясно",
-                1: "Маленькие облака",
-                2: "Облачно",
-                3: "Дождь",
-                4: "Снег",
-                5: "Гроза",
-                6: "Туман",
-                7: "Дождь со снегом",
-                8: "Снег с дождем"
-            }
-            weather_description = weather_descriptions.get(weathercode, "Неизвестно")
-
-            response_message = (
-                f"Погода в городе {city_name}:\n"
-                f"Температура: {temperature}°C\n"
-                f"Скорость ветра: {windspeed} м/с\n"
-                f"Влажность: {humidity}%\n"
-                f"Состояние погоды: {weather_description}"
-            )
-            await message.reply(response_message)
-        else:
-            await message.reply("Не удалось получить данные о погоде. Попробуйте позже.")
+        response_message = (
+            f"Погода в городе {city_name}:\n"
+            f"Температура: {temp}°C\n"
+            f"Ощущается как: {feels_like}°C\n"
+            f"Влажность: {humidity}%\n"
+            f"Скорость ветра: {wind_speed} м/с\n"
+            f"{description}"
+        )
+        await message.reply(response_message)
 
     except requests.exceptions.RequestException as e:
         logging.error(f"Ошибка при запросе: {e}")
